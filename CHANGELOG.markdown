@@ -27,6 +27,9 @@ next [????.??.??]
   produced matches what the corresponding bulk generator would declare for that
   field or constructor. (#710)
 * Document the relationship between `filtered`, `has`/`anyOf`, and `noneOf`.
+* Clarify the Haddocks for the rank-1 setter aliases (`ASetter` and friends)
+  and the `<~` mnemonic, drop the stale compile-error notes on `set` and
+  `set'`, and correct a reference to `sets` in `setting`'s Haddock.
 * Add `ioverA` to `Control.Lens.Lens`, an indexed variant of `overA`. The
   supplied arrow receives the index together with the old value as a pair.
 * Correct several stale type signatures in the lens hierarchy diagram — most

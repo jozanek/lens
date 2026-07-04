@@ -113,40 +113,52 @@ infixr 2 <~
 -- Setters
 ------------------------------------------------------------------------------
 
--- | Running a 'Setter' instantiates it to a concrete type.
+-- | A rank-1 representation of a 'Setter', obtained by specializing the
+-- setter's functor argument to 'Identity'.
 --
--- When consuming a setter directly to perform a mapping, you can use this type, but most
--- user code will not need to use this type.
+-- A polymorphic 'Setter' can be passed anywhere an 'ASetter' is expected.
+-- Many setter-consuming functions, such as 'over' and 'set', use 'ASetter'
+-- because the concrete 'Identity' representation gives GHC a simpler type
+-- to infer and report in error messages. Code that constructs setters should
+-- usually expose the more general 'Setter' type instead.
+--
+-- Since 'ASetter' is rank-1, it can also be useful when storing setters in
+-- containers. Use 'cloneSetter' to turn an 'ASetter' back into a full
+-- 'Setter'.
 type ASetter s t a b = (a -> Identity b) -> s -> Identity t
 
--- | This is a useful alias for use when consuming a 'Setter''.
---
--- Most user code will never have to use this type.
+-- | A 'Simple' 'ASetter'. See 'ASetter' for why consuming APIs use rank-1
+-- representations.
 --
 -- @
 -- type 'ASetter'' = 'Simple' 'ASetter'
 -- @
 type ASetter' s a = ASetter s s a a
 
--- | Running an 'IndexedSetter' instantiates it to a concrete type.
---
--- When consuming a setter directly to perform a mapping, you can use this type, but most
--- user code will not need to use this type.
+-- | A rank-1 representation of an 'IndexedSetter'. See 'ASetter' for why
+-- consuming APIs use rank-1 representations. Use 'cloneIndexedSetter' to
+-- recover a full 'IndexedSetter'.
 type AnIndexedSetter i s t a b = Indexed i a (Identity b) -> s -> Identity t
 
--- | @
+-- | A 'Simple' 'AnIndexedSetter'. See 'ASetter' for why consuming APIs use
+-- rank-1 representations.
+--
+-- @
 -- type 'AnIndexedSetter'' i = 'Simple' ('AnIndexedSetter' i)
 -- @
 type AnIndexedSetter' i s a = AnIndexedSetter i s s a a
 
--- | This is a convenient alias when defining highly polymorphic code that takes both
--- 'ASetter' and 'AnIndexedSetter' as appropriate. If a function takes this it is
--- expecting one of those two things based on context.
+-- | This is a convenient rank-1 alias when defining highly polymorphic code
+-- that takes either an 'ASetter' or 'AnIndexedSetter', as determined by the
+-- choice of @p@.
 type Setting p s t a b = p a (Identity b) -> s -> Identity t
 
--- | This is a convenient alias when defining highly polymorphic code that takes both
--- 'ASetter'' and 'AnIndexedSetter'' as appropriate. If a function takes this it is
--- expecting one of those two things based on context.
+-- | A 'Simple' 'Setting', standing for either an 'ASetter'' or an
+-- 'AnIndexedSetter'' as determined by the choice of @p@.
+--
+-- @
+-- type 'Setting'' p = 'Simple' ('Setting' p)
+-- @
 type Setting' p s a = Setting p s s a a
 
 -----------------------------------------------------------------------------
@@ -267,7 +279,7 @@ argument = sets lmap
 -- 'over' '.' 'setting' ≡ 'id'
 -- @
 --
--- Another way to view 'sets' is that it takes a \"semantic editor combinator\"
+-- Another way to view 'setting' is that it takes a \"semantic editor combinator\"
 -- and transforms it into a 'Setter'.
 --
 -- @
@@ -363,9 +375,6 @@ over = coerce
 -- >>> set mapped () [1,2,3,4]
 -- [(),(),(),()]
 --
--- Note: Attempting to 'set' a 'Fold' or 'Getter' will fail at compile time with an
--- relatively nice error message.
---
 -- @
 -- 'set' :: 'Setter' s t a b    -> b -> s -> t
 -- 'set' :: 'Iso' s t a b       -> b -> s -> t
@@ -390,9 +399,6 @@ set l = \b -> runIdentity #. l (\_ -> Identity b)
 --
 -- >>> set' mapped 0 [1,2,3,4]
 -- [0,0,0,0]
---
--- Note: Attempting to adjust 'set'' a 'Fold' or 'Getter' will fail at compile time with an
--- relatively nice error message.
 --
 -- @
 -- 'set'' :: 'Setter'' s a    -> a -> s -> s
@@ -985,6 +991,10 @@ l ||= b = State.modify (l ||~ b)
 -- @
 --
 -- will store the result in a 'Lens', 'Setter', or 'Traversal'.
+--
+-- Here the @<@ is a pun on the @<-@ used above. Unlike pass-through
+-- operators such as ('<.~') and ('<.='), ('<~') does not return the value
+-- that it assigns.
 (<~) :: MonadState s m => ASetter s s a b -> m b -> m ()
 l <~ mb = mb >>= (l .=)
 {-# INLINE (<~) #-}
