@@ -1,5 +1,10 @@
 next [????.??.??]
 -----------------
+* Change `fromLens`, `fromIso`, and `fromPrism` in `Control.Lens.Profunctor` to
+  accept the canonical monomorphic optic types `ALens`, `AnIso`, and `APrism`,
+  matching `fromSetter`/`fromTraversal` which already take `ASetter`/`ATraversal`.
+  Full polymorphic `Lens`/`Iso`/`Prism` values are still accepted unchanged; only
+  code that relied on the previous ad-hoc representations needs adjusting.
 * Re-add the `Control.Monad.Primitive.Lens` module, which was removed in
   `lens` 4.9. It offers `Iso`s for the conversions in
   `Control.Monad.Primitive`: `prim` (between a `PrimBase` monad and its
