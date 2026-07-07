@@ -31,6 +31,29 @@ next [????.??.??]
   declaring optics for an entire type as `makeLenses`/`makePrisms` do. The optic
   produced matches what the corresponding bulk generator would declare for that
   field or constructor. (#710)
+* `makeLenses`, `makeFields`, `makeClassy`, and the other field optic
+  generators now fail early with an error message naming the offending field
+  and data type when a field namer generates a Haskell keyword (for example,
+  a `_connectionType` field with `makeFields` would generate a class method
+  named `type`). Previously, GHC rejected the generated declarations with an
+  "Illegal variable name" error that gave no indication of which field was
+  responsible.
+* Add `avoidKeywordsNamer :: FieldNamer -> FieldNamer` and
+  `avoidKeywordsClassyNamer :: ClassyNamer -> ClassyNamer`, which modify a
+  namer to append an underscore to any generated name that would otherwise
+  be a keyword (e.g., generating a `type_` method for a `_connectionType`
+  field, or a `where_` method for `makeClassy` on a type named `Where`).
+* Add `avoidNamesNamer :: Set String -> FieldNamer -> FieldNamer` and
+  `avoidNamesClassyNamer :: Set String -> ClassyNamer -> ClassyNamer`, which
+  generalize the above to an arbitrary set of reserved identifiers, together
+  with the `haskellKeywords`, `ghcExtensionKeywords`, and per-extension keyword
+  lists to choose from. This lets you also avoid identifiers that are only
+  reserved when a particular extension is enabled, e.g.
+  `avoidNamesNamer (haskellKeywords <> ghcExtensionKeywords)`.
+* When `template-haskell-2.12` or later is available, the early keyword check
+  also accounts for enabled extensions that reserve additional generated
+  function or class method names, such as `TransformListComp` and
+  `StaticPointers`.
 * Document the relationship between `filtered`, `has`/`anyOf`, and `noneOf`.
 * Add `ioverA` to `Control.Lens.Lens`, an indexed variant of `overA`. The
   supplied arrow receives the index together with the old value as a pair.
