@@ -10,6 +10,8 @@ next [????.??.??]
   `Control.Monad.Primitive`: `prim` (between a `PrimBase` monad and its
   underlying `State#` representation, now type-changing), and the new `st`
   and `io` (between a `PrimBase` monad and `ST`/`IO`, respectively).
+* Deprecate `lifted` in `Control.Lens.Setter`. Use `mapped` instead, which
+  works for any `Monad` now that `Functor` is a superclass of `Monad`.
 * Add `ReifiedReview` to `Control.Lens.Reified`.
 * Fix `Data.Data.Lens.upon` (and its variants) looping forever when nested,
   e.g. `(upon.view.upon) tail`.
