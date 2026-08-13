@@ -27,7 +27,6 @@ import Control.Applicative
 import Control.Lens.Getter
 import Control.Lens.Internal.TH
 import Control.Lens.Lens
-import Control.Lens.Setter
 import Control.Monad
 import Data.Char (isUpper)
 import qualified Data.List as List
@@ -64,6 +63,10 @@ import Prelude
 -- _Bar :: Prism (FooBarBaz a) (FooBarBaz b) a b
 -- _Baz :: Prism' (FooBarBaz a) (Int, Char)
 -- @
+--
+-- On GHC 9.2 and later, with @-haddock@, each generated prism inherits its
+-- constructor's Haddock documentation, as 'Control.Lens.TH.makeLenses'
+-- does for fields.
 makePrisms :: Name {- ^ Type constructor name -} -> DecsQ
 makePrisms = makePrisms' True
 
@@ -127,6 +130,9 @@ makePrisms = makePrisms' True
 --
 -- instance AsQuux Quux
 -- @
+--
+-- The class methods inherit their constructor's Haddock documentation, as
+-- with 'makePrisms'.
 makeClassyPrisms :: Name {- ^ Type constructor name -} -> DecsQ
 makeClassyPrisms = makePrisms' False
 
@@ -198,6 +204,7 @@ makeConsPrisms t cons Nothing =
     do let conName = view nconName con
        stab <- computeOpticType t cons con
        let n = prismName conName
+       copyDocs [conName] n
        sequenceA
          ( [ sigD n (return (quantifyType [] (stabToType Set.empty stab)))
            , valD (varP n) (normalB (makeConOpticExp stab cons con)) []
@@ -302,6 +309,7 @@ makeConIso :: Type -> NCon -> DecsQ
 makeConIso s con =
   do let ty      = computeIsoType s (view nconTypes con)
          defName = prismName (view nconName con)
+     copyDocs [view nconName con] defName
      sequenceA
        ( [ sigD       defName  ty
          , valD (varP defName) (normalB (makeConIsoExp con)) []
@@ -447,7 +455,7 @@ makeClassyPrismClass ::
 makeClassyPrismClass t className methodName cons =
   do r <- newName "r"
      let methodType = appsT (conT prism'TypeName) [varT r,return t]
-     methodss <- traverse (mkMethod r) cons'
+     methodss <- traverse (mkMethod r) cons
      classD (cxt[]) className (D.plainTV r : vs) (fds r)
        ( sigD methodName methodType
        : map return (concat methodss)
@@ -456,16 +464,17 @@ makeClassyPrismClass t className methodName cons =
   where
   mkMethod r con =
     do Stab cx o _ _ _ b <- computeOpticType t cons con
-       let rTy   = VarT r
-           stab' = Stab cx o rTy rTy b b
-           defName = view nconName con
+       let rTy     = VarT r
+           stab'   = Stab cx o rTy rTy b b
+           conName = view nconName con
+           defName = prismName conName
            body    = appsE [varE composeValName, varE methodName, varE defName]
+       copyDocs [conName] defName
        sequenceA
          [ sigD defName        (return (stabToType (Set.fromList (r:vNames)) stab'))
          , valD (varP defName) (normalB body) []
          ]
 
-  cons'         = map (over nconName prismName) cons
   vs            = D.changeTVFlags bndrReq $ D.freeVariablesWellScoped [t]
   vNames        = map D.tvName vs
   fds r
