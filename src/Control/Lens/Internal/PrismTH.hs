@@ -196,21 +196,14 @@ makeConsPrisms :: Type -> [NCon] -> Maybe Name -> DecsQ
 -- special case: single constructor, not classy -> make iso
 -- ('makePrism' has the corresponding single-constructor Iso case; keep the two
 -- in sync.)
-makeConsPrisms t [con@(NCon _ [] [] _)] Nothing = makeConIso t con
+makeConsPrisms t [con@(NCon _ [] [] _)] Nothing =
+  makeConIso (prismName (view nconName con)) t con
 
 -- top-level definitions
 makeConsPrisms t cons Nothing =
   fmap concat $ for cons $ \con ->
-    do let conName = view nconName con
-       stab <- computeOpticType t cons con
-       let n = prismName conName
-       copyDocs [conName] n
-       sequenceA
-         ( [ sigD n (return (quantifyType [] (stabToType Set.empty stab)))
-           , valD (varP n) (normalB (makeConOpticExp stab cons con)) []
-           ]
-           ++ inlinePragma n
-         )
+    do stab <- computeOpticType t cons con
+       makeConOptic (prismName (view nconName con)) stab cons con
 
 
 -- classy prism class and instance
@@ -304,11 +297,23 @@ makeConOpticExp stab cons con =
     ReviewType -> makeConReviewExp con
 
 
--- | Construct an iso declaration
-makeConIso :: Type -> NCon -> DecsQ
-makeConIso s con =
-  do let ty      = computeIsoType s (view nconTypes con)
-         defName = prismName (view nconName con)
+-- | Declare the optic for one constructor under the given name, inheriting
+-- the constructor's documentation.
+makeConOptic :: Name -> Stab -> [NCon] -> NCon -> DecsQ
+makeConOptic n stab cons con =
+  do copyDocs [view nconName con] n
+     sequenceA
+       ( [ sigD n (return (quantifyType [] (stabToType Set.empty stab)))
+         , valD (varP n) (normalB (makeConOpticExp stab cons con)) []
+         ]
+         ++ inlinePragma n
+       )
+
+
+-- | Declare the iso for a lone constructor under the given name.
+makeConIso :: Name -> Type -> NCon -> DecsQ
+makeConIso defName s con =
+  do let ty = computeIsoType s (view nconTypes con)
      copyDocs [view nconName con] defName
      sequenceA
        ( [ sigD       defName  ty
